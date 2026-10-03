@@ -1,0 +1,11 @@
+# Scripts locales (01_corpus, 03_aug). Versiones con las que se ejecutó la tesis (Python 3.12).
+# Los notebooks de Colab instalan sus propias versiones fijas en su celda 3.
+numpy==2.5.3
+pandas==3.0.6
+scipy==1.18.1
+soundfile==0.14.0
+openpyxl==3.1.5
+torch==2.14.0
+torchaudio==2.11.0
+silero-vad==6.2.1
+yt-dlp==2026.8.19

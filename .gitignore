@@ -1,0 +1,19 @@
+# datos: viven en SHIPIBO_DATOS o en Drive, nunca en el repositorio
+*.wav
+*.mp3
+*.flac
+*.zip
+*.aup3
+*.aup3-*
+_cache/
+dataset_v*/
+no_pareado_v*/
+aug_v*/
+audio_generado/
+
+# entorno
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+~$*

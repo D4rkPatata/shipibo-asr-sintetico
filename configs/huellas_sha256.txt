@@ -1,0 +1,10 @@
+# Huellas sha256 de los artefactos del proyecto (formato: sha256  nombre)
+# Verificar con: Get-FileHash <archivo> -Algorithm SHA256   (Linux/Colab: sha256sum <archivo>)
+174b61329123a19a4ed9d09b4d8cb229eb7989cddc9d63d9888859c906993a5d  dataset_v1.0.zip
+96615b422998a62c77330cf59f9070bcd4184886fa97690787c1304103cce1d3  no_pareado_v1.zip
+ad7dde0391ab5aba928e8e0f0d25487451d351fae30242dc9507497146bb3c54  aug_v1.zip
+c2afa25d831b0012dee9818edc6bdc9305ab12602411e232de3f0e4cfddd50bd  split_v1.csv
+9ee9d32f2ef77b8298594fd8a2ddf266eaae3ea3460de4e5598ebf3f53ba1527  shp_apto_tts.txt
+
+# dataset_v2.0.zip: su huella la escribe consolidar_v2.ipynb en TESIS/asr/dataset_v2.0.zip.sha256
+# modelos TTS y ASR: sus huellas quedan en el config.json de generation.ipynb y de pseudoetiquetar.ipynb
