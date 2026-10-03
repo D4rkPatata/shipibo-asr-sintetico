@@ -13,27 +13,29 @@ versiones y huellas sha256, que funciona como registro automático del experimen
 ```mermaid
 flowchart TD
     subgraph C["01 · Corpus"]
-        A1[SK001 · Clipped · Workshop] --> B1[build_dataset_v1.py]
-        B1 --> D1[(dataset_v1.0.zip<br/>3,327 clips · 4.64 h)]
-        A2[SoundCloud · YouTube · GRN] --> X1[recoleccion/extract.py] --> X2[recoleccion/cut.py<br/>Silero VAD] --> X3[revisión manual<br/>seguimiento.xlsx]
-        X3 --> B2[build_no_pareado_v1.py]
-        T1[CONTROL_SET<br/>transcripción humana] --> B2
-        B2 --> D2[(no_pareado_v1.zip<br/>740 clips · 56.4 min)]
+        A1["SK001 · Clipped · Workshop"] --> B1["build_dataset_v1.py"]
+        B1 --> D1[("dataset_v1.0.zip<br/>3,327 clips · 4.64 h")]
+        A2["SoundCloud · YouTube · GRN"] --> X1["recoleccion/extract.py"]
+        X1 --> X2["recoleccion/cut.py<br/>Silero VAD"]
+        X2 --> X3["revisión manual<br/>seguimiento.xlsx"]
+        X3 --> B2["build_no_pareado_v1.py"]
+        T1["CONTROL_SET<br/>transcripción humana"] --> B2
+        B2 --> D2[("no_pareado_v1.zip<br/>740 clips · 56.4 min")]
     end
-    D1 --> S1[04 · train_asr.ipynb<br/>split_v1.csv + Whisper small]
-    S1 --> S2[04 · cerrar_asr_semilla.ipynb]
-    S2 --> M1[(ASR semilla<br/>modelo_final)]
-    TX[shp_apto_tts.txt<br/>22,240 oraciones] --> G1[02 · generation.ipynb<br/>Tacotron2 + HiFi-GAN]
-    G1 --> G2[02 · filtrar_sintetico.ipynb]
-    G2 --> D3[(metadata_tts.csv)]
-    D1 --> A3[03 · build_aug_v1.py<br/>×0.9 · ×1.1 · ruido 10–20 dB]
-    S1 -. split_v1.csv .-> A3
-    A3 --> D4[(aug_v1.zip<br/>8,118 clips · 11.5 h)]
-    M1 --> P1[05 · pseudoetiquetar.ipynb]
+    D1 --> S1["04 · train_asr.ipynb<br/>split_v1.csv + Whisper small"]
+    S1 --> S2["04 · cerrar_asr_semilla.ipynb"]
+    S2 --> M1[("ASR semilla<br/>modelo_final")]
+    TX["shp_apto_tts.txt<br/>22,240 oraciones"] --> G1["02 · generation.ipynb<br/>Tacotron2 + HiFi-GAN"]
+    G1 --> G2["02 · filtrar_sintetico.ipynb"]
+    G2 --> D3[("metadata_tts.csv")]
+    D1 --> A3["03 · build_aug_v1.py<br/>×0.9 · ×1.1 · ruido 10–20 dB"]
+    S1 -.->|"split_v1.csv"| A3
+    A3 --> D4[("aug_v1.zip<br/>8,118 clips · 11.5 h")]
+    M1 --> P1["05 · pseudoetiquetar.ipynb"]
     D2 --> P1
-    P1 --> D5[(metadata_pseudo.csv)]
-    D1 & D2 & D3 & D4 & D5 --> K1[06 · consolidar_v2.ipynb<br/>5 chequeos de fuga]
-    K1 --> D6[(dataset_v2.0.zip<br/>+ tabla de horas por tipo)]
+    P1 --> D5[("metadata_pseudo.csv")]
+    D1 & D2 & D3 & D4 & D5 --> K1["06 · consolidar_v2.ipynb<br/>5 chequeos de fuga"]
+    K1 --> D6[("dataset_v2.0.zip<br/>+ tabla de horas por tipo")]
 ```
 
 ## Pasos
