@@ -32,6 +32,12 @@ Se abre http://127.0.0.1:8000. La primera vez descarga MMS-1b-all (~4 GB) y tard
 1. **Grabar** (pide permiso para el micrófono) o **Subir audio** (WAV, FLAC, OGG o MP3; hasta 60 s).
 2. **Transcribir**: en unos 2 s aparece la transcripción con LM y, debajo, la del modelo acústico solo.
 
+Arriba hay **ejemplos con transcripción real**: dos audios de voces no vistas en el entrenamiento (un cuento de YouTube y
+una frase del workshop). Al elegir uno se transcribe y se compara con lo que realmente se dijo: las palabras distintas
+aparecen subrayadas y se muestran el CER y el WER con modelo de lenguaje y sin él. Los ejemplos se definen en
+`ejemplos/ejemplos.json`; sus audios (`ejemplos/*.wav`) son datos del corpus y no se publican, así que en una copia
+del repositorio la sección no aparece hasta copiar ahí los audios.
+
 Los audios no se guardan: se transcriben en memoria y se descartan.
 
 También hay una API: `POST /transcribir` (campo `audio`) devuelve

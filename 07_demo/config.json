@@ -1,5 +1,5 @@
 {
-  "nombre": "Modelo final (D26): MMS-1b-all + adaptador shp afinado con audio real (A3, semilla 2024) + LM de palabras (texto TTS)",
+  "nombre": "Modelo final: MMS-1b-all + adaptador shp afinado con audio real (A3, semilla 2024) + LM de palabras (texto TTS)",
   "modelo_base": "facebook/mms-1b-all",
   "revision_base": "3d33597edbdaaba14a8e858e2c8caa76e3cec0cd",
   "adaptador": "modelo",

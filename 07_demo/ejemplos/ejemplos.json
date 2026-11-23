@@ -1,0 +1,18 @@
+[
+  {
+    "id": "ejemplo1",
+    "archivo": "ejemplo1.wav",
+    "titulo": "Cuento narrado (YouTube)",
+    "referencia": "jaskati yoyo ikax paron nepokokana iki basicha senakana iki",
+    "duracion_s": 6.2,
+    "origen": "YT-cuento1-17"
+  },
+  {
+    "id": "ejemplo2",
+    "archivo": "ejemplo2.wav",
+    "titulo": "Frase del workshop del curso de NLP",
+    "referencia": "noara nontin kaibake",
+    "duracion_s": 3.2,
+    "origen": "WS-g01-grupo01_oracion07"
+  }
+]

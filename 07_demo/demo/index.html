@@ -26,6 +26,13 @@
   .estado { color:var(--suave); font-size:.9rem; min-height:1.4em; }
   .error { color:var(--rojo); }
   .pie { color:var(--suave); font-size:.82rem; }
+  .ayuda { color:var(--suave); font-size:.9rem; margin:0 0 12px; }
+  .ejemplo { text-align:left; background:transparent; color:var(--texto); border-color:var(--borde); }
+  .ejemplo b { color:var(--acento); }
+  .ejemplo.activo { border-color:var(--acento); box-shadow:0 0 0 1px var(--acento) inset; }
+  .metrica { font-size:.85rem; color:var(--suave); margin:-12px 0 16px; }
+  mark.mal { background:transparent; color:var(--rojo); text-decoration:underline wavy; text-underline-offset:4px; }
+  .referencia { border-left:3px solid var(--acento); padding-left:12px; }
 </style>
 </head>
 <body>
@@ -33,22 +40,36 @@
   <h1>Reconocimiento de voz en shipibo-konibo</h1>
   <p class="sub" id="modelo">Cargando información del modelo…</p>
 
+  <div class="tarjeta" id="tarjeta_ejemplos" hidden>
+    <p class="etiqueta">Ejemplos con transcripción real</p>
+    <p class="ayuda">Audios de voces que el modelo no escuchó durante el entrenamiento. Al elegir uno se transcribe
+    y se compara con lo que realmente se dijo: las palabras distintas aparecen subrayadas.</p>
+    <div class="fila" id="ejemplos"></div>
+  </div>
+
   <div class="tarjeta">
+    <p class="etiqueta">Su propio audio</p>
     <div class="fila">
       <button id="grabar">● Grabar</button>
       <label class="boton secundario" style="background:transparent;color:var(--acento)">Subir audio
         <input type="file" id="archivo" accept=".wav,.flac,.ogg,.mp3,audio/*"></label>
       <button id="transcribir" disabled>Transcribir</button>
     </div>
-    <audio id="reproductor" controls hidden></audio>
-    <p class="estado" id="estado">Grabe una frase o suba un audio (WAV, FLAC, OGG o MP3).</p>
   </div>
 
   <div class="tarjeta">
-    <p class="etiqueta">Transcripción (con modelo de lenguaje)</p>
+    <audio id="reproductor" controls hidden></audio>
+    <p class="estado" id="estado">Elija un ejemplo, grabe una frase o suba un audio (WAV, FLAC, OGG o MP3).</p>
+    <div id="bloque_ref" class="referencia" hidden>
+      <p class="etiqueta">Transcripción real</p>
+      <p class="texto" id="referencia">—</p>
+    </div>
+    <p class="etiqueta">Transcripción con modelo de lenguaje (modelo final)</p>
     <p class="texto principal" id="con_lm">—</p>
+    <p class="metrica" id="m_con_lm"></p>
     <p class="etiqueta">Sin modelo de lenguaje (solo el modelo acústico)</p>
     <p class="texto" id="sin_lm">—</p>
+    <p class="metrica" id="m_sin_lm"></p>
     <p class="estado" id="tiempos"></p>
   </div>
 
@@ -57,14 +78,76 @@
 </main>
 <script>
 const $ = id => document.getElementById(id);
-let audioActual = null, grabador = null;
+let audioActual = null, grabador = null, referencia = null;
+const num = x => x.toFixed(1).replace('.', ',');
+
+// distancia de edición entre dos secuencias (caracteres o palabras)
+function lev(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++)
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// palabras de la hipótesis que no están alineadas con la referencia (subsecuencia común más larga)
+function marcar(hip, ref) {
+  const h = hip.split(/\s+/).filter(Boolean), r = ref.split(/\s+/).filter(Boolean);
+  const L = Array.from({ length: h.length + 1 }, () => new Array(r.length + 1).fill(0));
+  for (let i = h.length - 1; i >= 0; i--) for (let j = r.length - 1; j >= 0; j--)
+    L[i][j] = h[i] === r[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const ok = new Array(h.length).fill(false);
+  for (let i = 0, j = 0; i < h.length && j < r.length;) {
+    if (h[i] === r[j]) { ok[i] = true; i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++;
+  }
+  return h.map((w, i) => ok[i] ? esc(w) : `<mark class="mal">${esc(w)}</mark>`).join(' ');
+}
+const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = t => (t || '').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+function mostrar(id, texto) {
+  const t = norm(texto);
+  if (!referencia || !t) { $(id).textContent = texto || '—'; $('m_' + id).textContent = ''; return; }
+  const r = norm(referencia);
+  $(id).innerHTML = marcar(t, r) || '—';
+  const cer = 100 * lev([...t], [...r]) / [...r].length, wer = 100 * lev(t.split(' '), r.split(' ')) / r.split(' ').length;
+  $('m_' + id).textContent = `CER ${num(cer)} % · WER ${num(wer)} % frente a la transcripción real`;
+}
+
+// ejemplos con transcripción real
+fetch('/ejemplos').then(r => r.json()).then(lista => {
+  if (!lista.length) return;
+  $('tarjeta_ejemplos').hidden = false;
+  lista.forEach((e, k) => {
+    const b = document.createElement('button');
+    b.className = 'ejemplo';
+    b.innerHTML = `<b>Ejemplo ${k + 1}</b><br>${esc(e.titulo)} · ${num(e.duracion_s)} s`;
+    b.onclick = async () => {
+      document.querySelectorAll('.ejemplo').forEach(x => x.classList.remove('activo')); b.classList.add('activo');
+      const blob = await (await fetch(`/ejemplos/${e.id}/audio`)).blob();
+      preparar(blob, e.id + '.wav', e.referencia);
+      transcribir();
+    };
+    $('ejemplos').appendChild(b);
+  });
+  // ?ejemplo=N abre la página con ese ejemplo ya transcrito
+  const n = parseInt(new URLSearchParams(location.search).get('ejemplo'));
+  if (n >= 1 && n <= lista.length) $('ejemplos').children[n - 1].click();
+}).catch(() => {});
 
 fetch('/modelo').then(r => r.json()).then(m => {
   $('modelo').textContent = m.nombre + ` · máximo ${m.max_segundos} s por audio`;
 }).catch(() => { $('modelo').textContent = 'No se pudo consultar el modelo.'; });
 
-function preparar(blob, nombre) {
+function preparar(blob, nombre, ref) {
   audioActual = { blob, nombre };
+  referencia = ref || null;
+  if (!ref) document.querySelectorAll('.ejemplo').forEach(x => x.classList.remove('activo'));
+  $('bloque_ref').hidden = !referencia;
+  $('referencia').textContent = referencia || '';
+  ['con_lm', 'sin_lm'].forEach(id => { $(id).textContent = '—'; $('m_' + id).textContent = ''; });
+  $('tiempos').textContent = '';
   $('reproductor').src = URL.createObjectURL(blob);
   $('reproductor').hidden = false;
   $('transcribir').disabled = false;
@@ -108,7 +191,8 @@ function aWav(trozos, sr) {
   return new Blob([buf], { type: 'audio/wav' });
 }
 
-$('transcribir').onclick = async () => {
+$('transcribir').onclick = () => transcribir();
+async function transcribir() {
   if (!audioActual) return;
   $('transcribir').disabled = true; estado('Transcribiendo…');
   const fd = new FormData(); fd.append('audio', audioActual.blob, audioActual.nombre);
@@ -116,13 +200,13 @@ $('transcribir').onclick = async () => {
     const r = await fetch('/transcribir', { method: 'POST', body: fd });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || 'error');
-    $('con_lm').textContent = d.con_lm ?? '(sin modelo de lenguaje configurado)';
-    $('sin_lm').textContent = d.sin_lm || '—';
-    $('tiempos').textContent = `Audio de ${d.duracion_s} s · modelo acústico ${d.segundos_modelo} s · modelo de lenguaje ${d.segundos_lm} s`;
+    if (d.con_lm == null) $('con_lm').textContent = '(sin modelo de lenguaje configurado)'; else mostrar('con_lm', d.con_lm);
+    mostrar('sin_lm', d.sin_lm);
+    $('tiempos').textContent = `Audio de ${num(d.duracion_s)} s · modelo acústico ${num(d.segundos_modelo)} s · modelo de lenguaje ${num(d.segundos_lm)} s`;
     estado('Listo.');
   } catch (e) { estado('Error: ' + e.message, true); }
   $('transcribir').disabled = false;
-};
+}
 </script>
 </body>
 </html>
