@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASR shipibo-konibo</title>
+<style>
+  :root { --fondo:#f6f5f2; --tarjeta:#fff; --texto:#1d1d1b; --suave:#6b6a66; --borde:#dedbd4; --acento:#1f6f5c; --rojo:#b23a2e; }
+  @media (prefers-color-scheme: dark) { :root { --fondo:#171716; --tarjeta:#222220; --texto:#ecebe7; --suave:#a3a19b; --borde:#3a3935; --acento:#5cc2a6; --rojo:#e07a6e; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:32px 16px 48px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  .sub { color:var(--suave); margin:0 0 24px; font-size:.95rem; }
+  .tarjeta { background:var(--tarjeta); border:1px solid var(--borde); border-radius:10px; padding:20px; margin-bottom:16px; }
+  .fila { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  button, label.boton { font:inherit; border:1px solid var(--acento); background:var(--acento); color:#fff; border-radius:8px; padding:10px 16px; cursor:pointer; }
+  button.secundario { background:transparent; color:var(--acento); }
+  button:disabled { opacity:.5; cursor:default; }
+  button.grabando { background:var(--rojo); border-color:var(--rojo); }
+  input[type=file] { display:none; }
+  audio { width:100%; margin-top:12px; }
+  .etiqueta { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--suave); margin:0 0 4px; }
+  .texto { font-size:1.3rem; min-height:1.5em; margin:0 0 16px; word-wrap:break-word; }
+  .texto.principal { font-size:1.5rem; font-weight:600; }
+  .estado { color:var(--suave); font-size:.9rem; min-height:1.4em; }
+  .error { color:var(--rojo); }
+  .pie { color:var(--suave); font-size:.82rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Reconocimiento de voz en shipibo-konibo</h1>
+  <p class="sub" id="modelo">Cargando información del modelo…</p>
+
+  <div class="tarjeta">
+    <div class="fila">
+      <button id="grabar">● Grabar</button>
+      <label class="boton secundario" style="background:transparent;color:var(--acento)">Subir audio
+        <input type="file" id="archivo" accept=".wav,.flac,.ogg,.mp3,audio/*"></label>
+      <button id="transcribir" disabled>Transcribir</button>
+    </div>
+    <audio id="reproductor" controls hidden></audio>
+    <p class="estado" id="estado">Grabe una frase o suba un audio (WAV, FLAC, OGG o MP3).</p>
+  </div>
+
+  <div class="tarjeta">
+    <p class="etiqueta">Transcripción (con modelo de lenguaje)</p>
+    <p class="texto principal" id="con_lm">—</p>
+    <p class="etiqueta">Sin modelo de lenguaje (solo el modelo acústico)</p>
+    <p class="texto" id="sin_lm">—</p>
+    <p class="estado" id="tiempos"></p>
+  </div>
+
+  <p class="pie">Prototipo académico (tesis PUCP). Los audios no se guardan: se transcriben y se descartan.
+  Modelo base MMS-1b-all de Meta, licencia CC-BY-NC 4.0: solo uso no comercial.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let audioActual = null, grabador = null;
+
+fetch('/modelo').then(r => r.json()).then(m => {
+  $('modelo').textContent = m.nombre + ` · máximo ${m.max_segundos} s por audio`;
+}).catch(() => { $('modelo').textContent = 'No se pudo consultar el modelo.'; });
+
+function preparar(blob, nombre) {
+  audioActual = { blob, nombre };
+  $('reproductor').src = URL.createObjectURL(blob);
+  $('reproductor').hidden = false;
+  $('transcribir').disabled = false;
+  estado('Listo para transcribir.');
+}
+function estado(t, error) { $('estado').textContent = t; $('estado').className = 'estado' + (error ? ' error' : ''); }
+
+$('archivo').onchange = e => { const f = e.target.files[0]; if (f) preparar(f, f.name); };
+
+// Grabación: PCM del micrófono -> WAV 16 bits en el navegador (no hace falta ffmpeg en el servidor)
+$('grabar').onclick = async () => {
+  if (grabador) { grabador.parar(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true } });
+    const ctx = new AudioContext();
+    const fuente = ctx.createMediaStreamSource(stream);
+    const nodo = ctx.createScriptProcessor(4096, 1, 1);
+    const trozos = [];
+    nodo.onaudioprocess = e => trozos.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    fuente.connect(nodo); nodo.connect(ctx.destination);
+    $('grabar').textContent = '■ Detener'; $('grabar').classList.add('grabando');
+    estado('Grabando… hable con claridad y pulse Detener al terminar.');
+    grabador = { parar: () => {
+      nodo.disconnect(); fuente.disconnect(); stream.getTracks().forEach(t => t.stop());
+      const sr = ctx.sampleRate; ctx.close();
+      preparar(aWav(trozos, sr), 'grabacion.wav');
+      $('grabar').textContent = '● Grabar'; $('grabar').classList.remove('grabando'); grabador = null;
+    } };
+  } catch (e) { estado('No se pudo usar el micrófono: ' + e.message, true); }
+};
+
+function aWav(trozos, sr) {
+  const n = trozos.reduce((s, t) => s + t.length, 0);
+  const buf = new ArrayBuffer(44 + 2 * n), v = new DataView(buf);
+  const txt = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  txt(0, 'RIFF'); v.setUint32(4, 36 + 2 * n, true); txt(8, 'WAVE'); txt(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+  v.setUint32(28, 2 * sr, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); txt(36, 'data'); v.setUint32(40, 2 * n, true);
+  let o = 44;
+  for (const t of trozos) for (const x of t) { v.setInt16(o, Math.max(-1, Math.min(1, x)) * 0x7fff, true); o += 2; }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+$('transcribir').onclick = async () => {
+  if (!audioActual) return;
+  $('transcribir').disabled = true; estado('Transcribiendo…');
+  const fd = new FormData(); fd.append('audio', audioActual.blob, audioActual.nombre);
+  try {
+    const r = await fetch('/transcribir', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'error');
+    $('con_lm').textContent = d.con_lm ?? '(sin modelo de lenguaje configurado)';
+    $('sin_lm').textContent = d.sin_lm || '—';
+    $('tiempos').textContent = `Audio de ${d.duracion_s} s · modelo acústico ${d.segundos_modelo} s · modelo de lenguaje ${d.segundos_lm} s`;
+    estado('Listo.');
+  } catch (e) { estado('Error: ' + e.message, true); }
+  $('transcribir').disabled = false;
+};
+</script>
+</body>
+</html>

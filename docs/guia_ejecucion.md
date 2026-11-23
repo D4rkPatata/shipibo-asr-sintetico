@@ -1,5 +1,7 @@
 # Guía de ejecución
 
+Pasos 0 a 6: etapa preliminar (corpus v2.0, en local y Colab). Paso 7: etapa final en el servidor.
+
 Orden exacto para reproducir el corpus v2.0 desde cero. `TESIS/` es la carpeta de Drive del proyecto
 (en la corrida original, `Mi unidad/TESISOTA/TESIS/`); `SHIPIBO_DATOS` es la carpeta local de datos
 (por defecto `D:\tesis\Code`).
@@ -64,3 +66,21 @@ Get-FileHash $env:SHIPIBO_DATOS\dataset_v1.0.zip -Algorithm SHA256
 ```
 
 Comparar con [configs/huellas_sha256.txt](../configs/huellas_sha256.txt). La de `dataset_v2.0.zip` está en `TESIS/asr/dataset_v2.0.zip.sha256`.
+
+## 7. Etapa final (servidor Linux con GPU)
+
+Entorno: Python 3.12 en `~/venvs/asr` (ver [04_asr/fase_A/README.md](../04_asr/fase_A/README.md)). Copiar al servidor
+`dataset_v1.1`, `split_v1.1.csv`, `no_pareado_v1`, `aug_v1`, el texto `shp_apto_tts.txt` y los modelos de Tacotron 2
+y HiFi-GAN. Cada cola es reanudable y se lanza dentro de `tmux` para que siga si se corta la conexión.
+
+| paso | comando | revisa |
+|---|---|---|
+| 7.1 | `python 02_tts/servidor/generar_tacotron.py …` y `python 02_tts/servidor/unir_tacotron.py …` | 23,558 frases de Tacotron 2, sin repetidas |
+| 7.2 | `python 02_tts/servidor/generar_mms.py --texto shp_apto_tts.txt --salida ~/tesis/tts/mms` | 23,558 frases de MMS-TTS |
+| 7.3 | `python 02_tts/texto_americasnlp.py …` y `generar_mms.py` sobre ese texto | `americasnlp_detalle.csv` (motivo de cada línea descartada) |
+| 7.4 | `bash 02_tts/servidor/cola_filtrado.sh` | resumen del filtrado por etapa y por TTS |
+| 7.5 | `python 04_asr/fase_A/preparar_tests.py …` | 881 clips en `evaluacion_v1/` |
+| 7.6 | colas de `04_asr/fase_A/` en el orden de su README (A → C → C6 + LM → C0 → D → E) | `tabla_C.txt`, `tabla_LM.txt`, `tabla_D.txt`, `tabla_niveles.txt` |
+| 7.7 | copiar el adaptador y el LM del modelo final a `07_demo/modelo/` y correr `07_demo/verificar.py` | CER y WER iguales a la evaluación |
+
+Los argumentos de cada script están en su `--help`.

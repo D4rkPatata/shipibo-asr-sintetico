@@ -2,7 +2,16 @@
 
 Código de la tesis *Generación de datos sintéticos para el entrenamiento de sistemas ASR en Shipibo-Konibo*
 (Daniel Malca López, PUCP). Cubre el flujo completo: armado del corpus, síntesis de voz (TTS), aumento de audio,
-ASR semilla, pseudoetiquetado y consolidación del corpus ampliado **v2.0**.
+pseudoetiquetado, entrenamiento y comparación de modelos ASR, y la demo del modelo final.
+
+El trabajo tiene dos etapas:
+
+1. **Etapa preliminar** (scripts locales + notebooks de Colab): corpus base, ASR semilla (Whisper small), síntesis de
+   la mitad de las frases con Tacotron 2, aumento, primera versión de las pseudoetiquetas y corpus ampliado **v2.0**.
+   Es lo que describen el diagrama y la tabla de pasos de abajo.
+2. **Etapa final** (scripts de Python en un servidor con GPU): síntesis completa con dos TTS (Tacotron 2 y MMS-TTS),
+   texto de AmericasNLP, los 43 modelos ASR de los escenarios comparativos (MMS-1b-all y Whisper), modelos de
+   lenguaje, pseudoetiquetas finales, elección del modelo final y demo. Ver [Etapa final](#etapa-final-servidor).
 
 Los datos no viven en el repositorio (son GB de audio): los scripts locales leen y escriben en la carpeta
 `SHIPIBO_DATOS` y los notebooks de Colab en Google Drive. Cada paso deja un `config.json` con sus parámetros,
@@ -43,6 +52,7 @@ flowchart TD
 | # | script | dónde corre | entrada | salida | parámetros clave |
 |---|---|---|---|---|---|
 | 01 | [`build_dataset_v1.py`](01_corpus/build_dataset_v1.py) | local | SK001, Clipped, DatasetWorkshop | `dataset_v1.0/` + `.zip` | 16 kHz mono; solo workshop con check auditivo = SI |
+| 01 | [`build_dataset_v1_1.py`](01_corpus/build_dataset_v1_1.py) | local | `dataset_v1.0`, `split_v1.csv`, workshop aprobado después | `dataset_v1.1/` + `.zip`, `split_v1.1.csv` | v1.0 congelada + 4 clips; split por grupo de hablante |
 | 01 | [`recoleccion/extract.py`](01_corpus/recoleccion/extract.py) | local | `links.txt` | un WAV por enlace | yt-dlp |
 | 01 | [`recoleccion/cut.py`](01_corpus/recoleccion/cut.py) | local | audio largo | clips de 2–6 s + `manifest.csv` | Silero VAD, umbral 0.5, pausa de unión 0.40 s |
 | 01 | [`build_no_pareado_v1.py`](01_corpus/build_no_pareado_v1.py) | local | `seguimiento.xlsx` ×3, `CONTROL_SET/transcripcion.xlsx` | `no_pareado_v1/` + `.zip` | excluye *eliminar* y *edicion* |
@@ -56,17 +66,32 @@ flowchart TD
 
 Detalle de cada paso en el `README.md` de su carpeta. Orden de ejecución y rutas exactas: [docs/guia_ejecucion.md](docs/guia_ejecucion.md).
 
+## Etapa final (servidor)
+
+| paso | script | qué hace |
+|---|---|---|
+| texto | [`02_tts/texto_americasnlp.py`](02_tts/texto_americasnlp.py) | limpia el lado shipibo de AmericasNLP 2021 (15,002 oraciones; 14,494 frases para el TTS) |
+| síntesis | [`02_tts/servidor/`](02_tts/servidor/) | `generar_tacotron.py` completa las frases que no se generaron en Colab, `unir_tacotron.py` une las dos mitades y `generar_mms.py` sintetiza todo con MMS-TTS (`facebook/mms-tts-shp`) |
+| filtrado | [`02_tts/servidor/cola_filtrado.sh`](02_tts/servidor/cola_filtrado.sh) | `filtrar_tts.py`: mismos filtros que la etapa preliminar + ida y vuelta con dos ASR (CER ≤ 40 %), exporta a 16 kHz |
+| evaluación y modelos | [`04_asr/fase_A/`](04_asr/fase_A/) | conjunto de evaluación fijo, fases A, C, D y E, modelos de lenguaje, tablas y métricas relajadas (ver su README) |
+| pseudoetiquetas finales | [`05_pseudo/pseudoetiquetar_v2.py`](05_pseudo/pseudoetiquetar_v2.py) | pseudoetiqueta con el mejor modelo según dev + acuerdo con Whisper medium y arma los pliegues por video (lo lanza `cola_D.sh`) |
+| evaluación perceptual | [`02_tts/muestra_mos.py`](02_tts/muestra_mos.py) | muestra de 30 audios + 2 de práctica con códigos anónimos para el formulario MOS/IR |
+| demo | [`07_demo/`](07_demo/) | página web local (FastAPI) con el modelo final; ver su `LEEME.md` |
+
+Las decisiones de diseño del experimento (D01…D31), con su motivo, están en [docs/decisiones.md](docs/decisiones.md).
+
 ## Estructura
 
 ```
-01_corpus/        corpus pareado v1.0 y corpus no pareado v1 (+ recolección y corte con VAD)
-02_tts/           generación de voz sintética y su filtrado
+01_corpus/        corpus pareado v1.0/v1.1 y corpus no pareado v1 (+ recolección y corte con VAD)
+02_tts/           voz sintética: notebooks de Colab y servidor/ (Tacotron 2 y MMS-TTS), filtrado, texto AmericasNLP
 03_aug/           aumento de audio offline (solo train)
-04_asr/           ASR semilla: entrenamiento y cierre
-05_pseudo/        pseudoetiquetado del no pareado, evaluado contra el control humano
+04_asr/           ASR semilla (Colab) y fase_A/ (escenarios comparativos, LM y análisis en el servidor)
+05_pseudo/        pseudoetiquetado del no pareado (versión 1 en Colab, versión final en el servidor)
 06_consolidar/    corpus ampliado v2.0 con chequeos de fuga
+07_demo/          demo local del modelo final (R8)
 configs/          huellas sha256 y parámetros de referencia
-docs/             guía de ejecución y tabla para la tesis
+docs/             guía de ejecución, decisiones metodológicas y tabla para la tesis
 ```
 
 Cada notebook es autocontenido: su celda 4 escribe en Colab los módulos que usa (`asr_core.py`, `tts_core.py`,

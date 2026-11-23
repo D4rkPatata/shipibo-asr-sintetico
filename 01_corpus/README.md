@@ -13,6 +13,15 @@ Integra tres fuentes con transcripción humana y las deja en 16 kHz, mono, PCM16
 Salida: `dataset_v1.0/` (`wavs/`, `metadata.csv`, `metadata_hf.csv`, `excluidos.csv`, `stats.json`, `stats.md`).
 Resultado de la tesis: 3,327 clips, 4.64 h, 18 grupos de hablante.
 
+## `build_dataset_v1_1.py` → corpus pareado v1.1
+
+v1.0 **congelada** (se copia byte a byte) + los clips del workshop aprobados después (`Transcriptions_final.xlsx`).
+Cada clip nuevo va al split de su grupo de hablante en `split_v1.1.csv` (= `split_v1.csv` + filas nuevas); se saca
+si su texto genera fuga (evaluación contenida en el TTS, o train con texto de evaluación).
+
+Resultado: 3,331 clips, 4.641 h. Agregados 4 clips (21.1 s): `WS-g07-oracion_001_shipibo` (train) y los 3 trozos en que
+se partió `grupo08_oracion21` (test_otros). Todo lo construido sobre v1.0 (aumento, ASR semilla, v2.0) sigue siendo válido.
+
 ## `recoleccion/` → audio no pareado
 
 1. `extract.py <carpeta>`: descarga cada enlace de `<carpeta>/links.txt` (SoundCloud o YouTube) a su propia carpeta, en WAV.

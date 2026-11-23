@@ -17,3 +17,12 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 ~$*
+
+# demo: el modelo afinado y el LM son derivados del corpus (licencia pendiente); los audios de prueba son datos
+07_demo/modelo/*
+!07_demo/modelo/LEEME.md
+07_demo/prueba/
+
+# registro interno de trabajo (las decisiones metodológicas están en docs/decisiones.md)
+bitacora/
+docs/avance_tesis.md

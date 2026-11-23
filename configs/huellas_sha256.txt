@@ -5,6 +5,8 @@
 ad7dde0391ab5aba928e8e0f0d25487451d351fae30242dc9507497146bb3c54  aug_v1.zip
 c2afa25d831b0012dee9818edc6bdc9305ab12602411e232de3f0e4cfddd50bd  split_v1.csv
 9ee9d32f2ef77b8298594fd8a2ddf266eaae3ea3460de4e5598ebf3f53ba1527  shp_apto_tts.txt
+f663fd0ee9610ef4fdd73a5b1aeca3f7dd7bb98eb5d3dc6872c7b6d7a0b2cf4d  dataset_v1.1.zip
+dd8cde676f512b71d1f19421f85816106857c556db821d1f1f298d2b1eef14e8  split_v1.1.csv
 
 # dataset_v2.0.zip: su huella la escribe consolidar_v2.ipynb en TESIS/asr/dataset_v2.0.zip.sha256
 # modelos TTS y ASR: sus huellas quedan en el config.json de generation.ipynb y de pseudoetiquetar.ipynb

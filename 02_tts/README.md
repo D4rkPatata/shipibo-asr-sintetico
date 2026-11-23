@@ -1,5 +1,15 @@
 # 02 · Síntesis de voz (TTS)
 
+> **`servidor/`**: generación completa en GPU propia, fuera de Colab. `generar_tacotron.py` completa las frases que
+> Colab no generó; `generar_mms.py` sintetiza las 23,558 con Meta MMS-TTS (`facebook/mms-tts-shp`, VITS, segunda voz).
+> Ambos usan `comun.py`: mismas frases, orden y semilla por frase que `generation.ipynb`.
+>
+> ```bash
+> export CUDA_VISIBLE_DEVICES=1
+> python generar_tacotron.py --texto shp_apto_tts.txt --salida ~/tesis/tts/tacotron_parte2
+> python generar_mms.py      --texto shp_apto_tts.txt --salida ~/tesis/tts/mms
+> ```
+
 ## `generation.ipynb` (Colab, GPU)
 
 Tacotron2 (checkpoint `SKF2`) + HiFi-GAN (`g_00000000`) del trabajo de Menéndez y Erasmo, cargados como en su notebook

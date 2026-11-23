@@ -1,0 +1,15 @@
+# Demo local (CPU). torch desde el índice de CPU de PyTorch:
+#   uv pip install --python .venv torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+#   uv pip install --python .venv -r requirements.txt
+transformers==5.17.0
+safetensors==0.8.0
+numpy==1.26.4
+scipy==1.17.1
+soundfile==0.14.0
+pyctcdecode==0.5.0
+fastapi==0.165.0
+uvicorn==0.54.0
+python-multipart==0.0.34
+# solo para verificar.py
+jiwer==4.0.0
+pandas==3.0.6
